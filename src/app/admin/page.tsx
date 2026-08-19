@@ -244,33 +244,36 @@ export default function AdminPage() {
             <p style={{ color: "var(--color-text-secondary)", fontSize: "0.875rem" }}>Admin dashboard</p>
           </div>
 
-          <div className="card" style={{ padding: 24 }}>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: "block", fontSize: "0.8125rem", fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 6 }}>
-                Admin passphrase
-              </label>
-              <input
-                type="password"
-                value={pass}
-                onChange={(e) => setPass(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && loadEmployees()}
-                placeholder="Enter passphrase"
-                className="input"
-              />
-              {error && (
-                <p style={{ marginTop: 8, fontSize: "0.8125rem", color: "var(--color-danger-text)" }}>
-                  {error}
-                </p>
-              )}
-            </div>
-            <button
-              onClick={loadEmployees}
-              disabled={loading || !pass}
-              className="btn btn-primary"
-              style={{ width: "100%", height: 40 }}
-            >
-              {loading ? "Verifying…" : "Sign in"}
-            </button>
+          <div className="card" style={{ padding: 28 }}>
+            <form onSubmit={(e) => { e.preventDefault(); loadEmployees(); }}>
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ display: "block", fontSize: "0.8125rem", fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 8 }}>
+                  Admin passphrase
+                </label>
+                <input
+                  type="password"
+                  value={pass}
+                  onChange={(e) => setPass(e.target.value)}
+                  placeholder="Enter passphrase"
+                  className="input"
+                  style={{ width: "100%", height: 42, fontSize: "0.9375rem" }}
+                  autoFocus
+                />
+                {error && (
+                  <p style={{ marginTop: 8, fontSize: "0.8125rem", color: "var(--color-danger-text)", fontWeight: 500 }}>
+                    {error}
+                  </p>
+                )}
+              </div>
+              <button
+                type="submit"
+                disabled={loading || !pass.trim()}
+                className="btn btn-primary"
+                style={{ width: "100%", height: 42, fontSize: "0.9375rem", fontWeight: 600 }}
+              >
+                {loading ? "Verifying…" : "Sign in"}
+              </button>
+            </form>
           </div>
         </div>
       </main>
