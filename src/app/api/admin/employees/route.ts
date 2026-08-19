@@ -6,6 +6,15 @@ import { assertServerEnv } from "@/lib/config";
 
 export const runtime = "nodejs";
 
+function getBaseUrl(req: Request): string {
+  const envUrl = process.env.NEXT_PUBLIC_BASE_URL;
+  if (envUrl && !envUrl.includes("localhost")) return envUrl;
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
+  const proto = req.headers.get("x-forwarded-proto") || "https";
+  if (host) return `${proto}://${host}`;
+  return envUrl || "http://localhost:3000";
+}
+
 /** GET: list all employees with progress (admin only). */
 export async function GET(req: Request) {
   if (!isAdmin(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -19,7 +28,7 @@ export async function GET(req: Request) {
       )
       .order("created_at", { ascending: false });
     if (error) throw error;
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    const baseUrl = getBaseUrl(req);
     const withLinks = (data ?? []).map((e) => ({
       ...e,
       interview_url: `${baseUrl}/interview/${e.access_token}`,
@@ -58,7 +67,7 @@ export async function POST(req: Request) {
       .single();
     if (error) throw error;
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    const baseUrl = getBaseUrl(req);
     return NextResponse.json({
       employee: data,
       interview_url: `${baseUrl}/interview/${access_token}`,
