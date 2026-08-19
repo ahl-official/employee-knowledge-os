@@ -140,11 +140,16 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/admin/employees", { headers: headers() });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed");
+      if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error("Incorrect passphrase. (Ensure ADMIN_PASSPHRASE is set in Vercel Environment Variables)");
+        }
+        throw new Error(data.error || "Login failed");
+      }
       setEmployees(data.employees ?? []);
       setAuthed(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed");
+      setError(e instanceof Error ? e.message : "Failed to sign in");
       setAuthed(false);
     } finally {
       setLoading(false);
