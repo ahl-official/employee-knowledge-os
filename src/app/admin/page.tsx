@@ -259,12 +259,10 @@ export default function AdminPage() {
 
           <div className="card" style={{ padding: 28 }}>
             <form
-              method="post"
-              action="#"
               onSubmit={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const pwdInput = e.currentTarget.querySelector<HTMLInputElement>("input[type='password']");
+                const pwdInput = e.currentTarget.querySelector<HTMLInputElement>("input[name='passphrase']");
                 const val = pwdInput?.value || pass;
                 loadEmployees(val);
               }}
@@ -291,7 +289,12 @@ export default function AdminPage() {
                 )}
               </div>
               <button
-                type="submit"
+                type="button"
+                onClick={() => {
+                  const pwdInput = document.querySelector<HTMLInputElement>("input[name='passphrase']");
+                  const val = pwdInput?.value || pass;
+                  loadEmployees(val);
+                }}
                 disabled={loading}
                 className="btn btn-primary"
                 style={{ width: "100%", height: 42, fontSize: "0.9375rem", fontWeight: 600 }}
