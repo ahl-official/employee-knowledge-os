@@ -362,7 +362,7 @@ export default function AdminPage() {
             </p>
           </div>
 
-          <form onSubmit={addEmployee}>
+          <form onSubmit={(e) => { e.preventDefault(); e.stopPropagation(); addEmployee(e); }}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16, marginBottom: 16 }}>
               <div>
                 <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 6 }}>
