@@ -134,15 +134,18 @@ export default function AdminPage() {
     [pass]
   );
 
-  const loadEmployees = useCallback(async () => {
-    if (!pass.trim()) {
+  const loadEmployees = useCallback(async (overridePass?: string) => {
+    const activePass = (overridePass ?? pass).trim();
+    if (!activePass) {
       setError("Please enter the admin passphrase");
       return;
     }
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/admin/employees", { headers: headers() });
+      const res = await fetch("/api/admin/employees", {
+        headers: { "Content-Type": "application/json", "x-admin-passphrase": activePass },
+      });
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 401) {
@@ -150,6 +153,7 @@ export default function AdminPage() {
         }
         throw new Error(data.error || "Login failed");
       }
+      setPass(activePass);
       setEmployees(data.employees ?? []);
       setAuthed(true);
     } catch (e) {
@@ -158,7 +162,7 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, [pass, headers]);
+  }, [pass]);
 
   async function addEmployee(e: React.FormEvent) {
     e.preventDefault();
@@ -254,13 +258,24 @@ export default function AdminPage() {
           </div>
 
           <div className="card" style={{ padding: 28 }}>
-            <form onSubmit={(e) => { e.preventDefault(); loadEmployees(); }}>
+            <form
+              method="post"
+              action="#"
+              onSubmit={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const pwdInput = e.currentTarget.querySelector<HTMLInputElement>("input[type='password']");
+                const val = pwdInput?.value || pass;
+                loadEmployees(val);
+              }}
+            >
               <div style={{ marginBottom: 18 }}>
                 <label style={{ display: "block", fontSize: "0.8125rem", fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 8 }}>
                   Admin passphrase
                 </label>
                 <input
                   type="password"
+                  name="passphrase"
                   value={pass}
                   onChange={(e) => setPass(e.target.value)}
                   onInput={(e) => setPass((e.target as HTMLInputElement).value)}
@@ -305,7 +320,7 @@ export default function AdminPage() {
             <span style={{ fontWeight: 600, fontSize: "0.9375rem" }}>Knowledge OS</span>
             <span style={{ color: "var(--color-text-muted)", fontSize: "0.8125rem" }}>/ Admin</span>
           </div>
-          <button onClick={loadEmployees} disabled={loading} className="btn btn-secondary" style={{ gap: 6 }}>
+          <button onClick={() => loadEmployees()} disabled={loading} className="btn btn-secondary" style={{ gap: 6 }}>
             <IconRefresh />
             {loading ? "Loading…" : "Refresh"}
           </button>
