@@ -162,6 +162,7 @@ export default function InterviewClient({ token }: { token: string }) {
       if (data.openBranches) setBranches(data.openBranches);
       if (data.done) setDone(true);
     } catch (e) {
+      setMessages((m) => m.slice(0, -1));
       setError(
         e instanceof Error
           ? `${e.message} (Your message is preserved in the box below — please check your network and retry)`
@@ -206,6 +207,7 @@ export default function InterviewClient({ token }: { token: string }) {
       if (data.openBranches) setBranches(data.openBranches);
       if (data.done) setDone(true);
     } catch (e) {
+      setMessages((m) => m.slice(0, -1));
       setError(e instanceof Error ? e.message : "Upload failed. Please try again.");
     } finally {
       setUploading(false);
