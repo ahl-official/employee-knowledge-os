@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+
 function IconPaperclip() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -22,7 +23,7 @@ function IconMic({ active }: { active: boolean }) {
 
 function IconSend() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <line x1="22" y1="2" x2="11" y2="13" />
       <polygon points="22 2 15 22 11 13 2 9 22 2" fill="currentColor" />
     </svg>
@@ -37,30 +38,31 @@ interface ChatMessage {
 const ACCEPT = ".pdf,.xlsx,.xls,.csv,.docx,.doc,.txt,image/*";
 
 // ── Typing Indicator ─────────────────────────────────────────────────────────
-function TypingIndicator({ label = "AI is thinking…" }: { label?: string }) {
+function TypingIndicator({ label = "AI is processing…" }: { label?: string }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 0" }}>
       <div
         style={{
           display: "inline-flex",
           alignItems: "center",
-          gap: 4,
-          padding: "10px 14px",
-          background: "var(--color-bg-subtle)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-lg)",
+          gap: 5,
+          padding: "12px 18px",
+          background: "#ffffff",
+          border: "1.5px solid #e2e8f0",
+          borderRadius: "18px",
+          boxShadow: "0 2px 6px rgba(15,23,42,0.04)",
         }}
       >
         <span className="typing-dot" />
         <span className="typing-dot" />
         <span className="typing-dot" />
       </div>
-      <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{label}</span>
+      <span style={{ fontSize: "0.8125rem", color: "var(--color-text-secondary)", fontWeight: 500 }}>{label}</span>
     </div>
   );
 }
 
-// ── Main ─────────────────────────────────────────────────────────────────────
+// ── Main Component ───────────────────────────────────────────────────────────
 export default function InterviewClient({ token }: { token: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [employeeName, setEmployeeName] = useState("");
@@ -103,7 +105,6 @@ export default function InterviewClient({ token }: { token: string }) {
       }
     })();
 
-    // Cleanup audio tracks and socket on unmount
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
@@ -123,7 +124,7 @@ export default function InterviewClient({ token }: { token: string }) {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 148) + "px";
+    el.style.height = Math.min(el.scrollHeight, 140) + "px";
   }, [answer]);
 
   async function submit() {
@@ -140,7 +141,6 @@ export default function InterviewClient({ token }: { token: string }) {
     setError("");
 
     try {
-      // Optimistically show user message
       setMessages((m) => [...m, { role: "user", content: text }]);
 
       const res = await fetch("/api/interview/answer", {
@@ -151,7 +151,6 @@ export default function InterviewClient({ token }: { token: string }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to send");
 
-      // Only clear textarea on confirmed success
       setAnswer("");
       setMessages((m) => [...m, { role: "assistant", content: data.nextQuestion }]);
       if ("speechSynthesis" in window) {
@@ -165,8 +164,8 @@ export default function InterviewClient({ token }: { token: string }) {
       setMessages((m) => m.slice(0, -1));
       setError(
         e instanceof Error
-          ? `${e.message} (Your message is preserved in the box below — please check your network and retry)`
-          : "Failed to send. Please check your connection and retry."
+          ? `${e.message} (Your answer remains saved in the input box below)`
+          : "Failed to send. Please check connection and retry."
       );
     } finally {
       setSending(false);
@@ -193,7 +192,6 @@ export default function InterviewClient({ token }: { token: string }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed");
 
-      // Clear input and file on success
       setAnswer("");
       setSelectedFile(null);
       if (fileRef.current) fileRef.current.value = "";
@@ -269,7 +267,7 @@ export default function InterviewClient({ token }: { token: string }) {
             setAnswer((prev) => (prev ? `${prev} ${transcript}` : transcript));
           }
         } catch {
-          // ignore parse errors on keepalive frames
+          // ignore
         }
       };
 
@@ -294,21 +292,20 @@ export default function InterviewClient({ token }: { token: string }) {
         streamRef.current = null;
       }
       setIsRecording(false);
-      setError("Microphone access or voice connection failed. You can continue typing your answer below.");
+      setError("Microphone access failed. You can type your answer below.");
     }
   }
 
-  const progressColor = progress >= 80 ? "var(--color-success)" : progress >= 40 ? "var(--color-warn)" : "var(--color-accent)";
   const coverageKeys = Object.keys(coverage);
   const firstName = employeeName ? employeeName.split(" ")[0] : "";
 
   // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <main style={{ display: "flex", minHeight: "100dvh", alignItems: "center", justifyContent: "center", background: "var(--color-bg)" }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, color: "var(--color-text-muted)" }}>
-          <div style={{ width: 24, height: 24, border: "2px solid var(--color-accent)", borderTopColor: "transparent", borderRadius: "50%" }} />
-          <p style={{ fontSize: "0.875rem" }}>Loading your interview…</p>
+      <main style={{ display: "flex", minHeight: "100dvh", alignItems: "center", justifyContent: "center", background: "#f8fafc" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, color: "var(--color-text-secondary)" }}>
+          <div style={{ width: 28, height: 28, border: "3px solid var(--color-accent)", borderTopColor: "transparent", borderRadius: "50%" }} />
+          <p style={{ fontSize: "0.9375rem", fontWeight: 500 }}>Initializing your interview session…</p>
         </div>
       </main>
     );
@@ -317,16 +314,16 @@ export default function InterviewClient({ token }: { token: string }) {
   // ── Error (no session) ──────────────────────────────────────────────────────
   if (error && messages.length === 0) {
     return (
-      <main style={{ display: "flex", minHeight: "100dvh", alignItems: "center", justifyContent: "center", padding: 24, background: "var(--color-bg)" }}>
-        <div style={{ maxWidth: 360, textAlign: "center" }}>
-          <div style={{ width: 44, height: 44, background: "var(--color-danger-light)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", border: "1px solid #fca5a5" }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-danger)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <main style={{ display: "flex", minHeight: "100dvh", alignItems: "center", justifyContent: "center", padding: 24, background: "#f8fafc" }}>
+        <div className="card" style={{ maxWidth: 400, padding: 32, textAlign: "center" }}>
+          <div style={{ width: 52, height: 52, background: "var(--color-danger-light)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", border: "1px solid #fca5a5" }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-danger)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 9v2m0 4h.01M12 3a9 9 0 110 18A9 9 0 0112 3z" />
             </svg>
           </div>
-          <h2 style={{ marginBottom: 8 }}>Link not valid</h2>
-          <p style={{ color: "var(--color-text-secondary)", fontSize: "0.875rem" }}>
-            This interview link is invalid or has expired. Please ask your manager to resend the link.
+          <h2 style={{ marginBottom: 10 }}>Invalid Interview Link</h2>
+          <p style={{ color: "var(--color-text-secondary)", fontSize: "0.875rem", lineHeight: 1.5 }}>
+            This interview session link is invalid or has expired. Please request a new link from your manager.
           </p>
         </div>
       </main>
@@ -336,205 +333,182 @@ export default function InterviewClient({ token }: { token: string }) {
   // ── Main Interview UI ────────────────────────────────────────────────────────
   return (
     <div className="interview-shell">
-      {/* Chat Panel */}
+      {/* Main Chat Area */}
       <div className="chat-panel">
-        {/* Header */}
+        {/* Top Header */}
         <header className="chat-header">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              {/* AI avatar */}
-              <div style={{ width: 32, height: 32, background: "var(--color-accent)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div className="avatar avatar-md">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a10 10 0 100 20 10 10 0 000-20z" />
+                  <path d="M12 6v6l4 2" />
                 </svg>
               </div>
               <div>
-                <div style={{ fontWeight: 600, fontSize: "0.9375rem" }}>
-                  {firstName ? `Hi, ${firstName}!` : "Knowledge Interview"}
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontWeight: 700, fontSize: "1.0625rem" }}>
+                    {firstName ? `Hi, ${firstName}!` : "Knowledge OS Interview"}
+                  </span>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--color-success)", boxShadow: "0 0 0 2px rgba(16, 185, 129, 0.2)" }} title="AI Active" />
                 </div>
-                <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>Knowledge Architect · AI</div>
+                <div style={{ fontSize: "0.7813rem", color: "var(--color-text-secondary)", fontWeight: 500 }}>
+                  Knowledge Architect · AI Interviewer
+                </div>
               </div>
             </div>
 
-            {/* Progress badge */}
-            <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: progressColor }}>
-              {progress}%
-            </span>
+            {/* Overall Progress Badge */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--color-accent)" }}>
+                {progress}% Complete
+              </span>
+            </div>
           </div>
 
-          {/* Progress bar */}
-          <div className="progress-track" style={{ height: 3 }}>
-            <div className="progress-fill" style={{ width: `${progress}%`, background: progressColor }} />
+          {/* Dual-Tone Animated Progress Bar */}
+          <div className="progress-track">
+            <div className={`progress-fill ${progress >= 80 ? "green" : progress >= 45 ? "amber" : ""}`} style={{ width: `${progress}%` }} />
           </div>
         </header>
 
-        {/* Message feed */}
-        <div ref={scrollRef} className="chat-feed scrollbar-thin">
+        {/* Message Feed */}
+        <div ref={scrollRef} className="chat-messages scrollbar-thin">
           {messages.map((m, i) => (
-            <div key={i} className={`bubble ${m.role === "assistant" ? "bubble-ai" : "bubble-user"}`}>
-              {m.content}
+            <div key={i} style={{ display: "flex", width: "100%", justifyContent: m.role === "assistant" ? "flex-start" : "flex-end" }}>
+              <div className={`bubble ${m.role === "assistant" ? "bubble-ai" : "bubble-user"}`}>
+                {m.role === "assistant" && (
+                  <div style={{ fontSize: "0.6875rem", fontWeight: 700, color: "var(--color-accent)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>
+                    AI Interviewer
+                  </div>
+                )}
+                {m.content}
+              </div>
             </div>
           ))}
 
-          {sending && <TypingIndicator label="AI is thinking…" />}
-          {uploading && <TypingIndicator label="Analyzing document with AI…" />}
-          {isRecording && <TypingIndicator label="Listening to your voice…" />}
+          {sending && <TypingIndicator label="Analyzing your answer & preparing follow-up…" />}
+          {uploading && <TypingIndicator label="Parsing document contents & extracting tasks…" />}
+          {isRecording && <TypingIndicator label="Transcribing speech in real-time…" />}
 
-          {/* Completed banner */}
+          {/* Completed Banner */}
           {done && (
             <div
               style={{
                 marginTop: 16,
-                padding: 16,
-                background: "var(--color-success-light)",
-                border: "1px solid #86efac",
+                padding: 24,
+                background: "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)",
+                border: "1.5px solid #a7f3d0",
                 borderRadius: "var(--radius-lg)",
                 textAlign: "center",
+                boxShadow: "var(--shadow-sm)",
               }}
             >
-              <div style={{ fontSize: "1.25rem", marginBottom: 6 }}>🎉</div>
-              <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, color: "var(--color-success)", marginBottom: 4 }}>
-                Interview complete!
+              <div style={{ fontSize: "1.5rem", marginBottom: 6 }}>🎉</div>
+              <h3 style={{ fontSize: "1.0625rem", fontWeight: 700, color: "var(--color-success-text)", marginBottom: 6 }}>
+                Knowledge Documentation Complete!
               </h3>
-              <p style={{ fontSize: "0.8125rem", color: "#166534", margin: 0 }}>
-                Thank you! Your knowledge has been captured into the company base. Your manager can now generate your handover documentation.
+              <p style={{ fontSize: "0.875rem", color: "#065f46", margin: 0, lineHeight: 1.5 }}>
+                Thank you! Your task workflows and operational knowledge have been captured. Your manager can now generate your full SOP handover report.
               </p>
             </div>
           )}
         </div>
 
-        {/* Input Bar */}
+        {/* Unified Floating Chat Input Bar */}
         <footer className="chat-footer">
           {error && (
-            <div style={{ marginBottom: 10, padding: "8px 12px", background: "var(--color-danger-light)", border: "1px solid #fca5a5", borderRadius: "var(--radius-md)", color: "var(--color-danger)", fontSize: "0.8125rem" }}>
-              {error}
+            <div style={{ marginBottom: 12, padding: "10px 14px", background: "var(--color-danger-light)", border: "1px solid #fca5a5", borderRadius: "var(--radius-md)", color: "var(--color-danger-text)", fontSize: "0.8125rem", fontWeight: 500 }}>
+              ⚠ {error}
             </div>
           )}
 
           {done ? (
-            <div style={{ textAlign: "center", padding: "12px 0", color: "var(--color-text-muted)", fontSize: "0.875rem" }}>
-              This interview is complete. You can close this window.
+            <div style={{ textAlign: "center", padding: "16px 0", color: "var(--color-text-muted)", fontSize: "0.875rem", fontWeight: 500 }}>
+              This knowledge capture session is complete. You may close this tab.
             </div>
           ) : (
-            <div>
-              {/* Selected File Chip */}
+            <div className="chat-input-container">
+              {/* File Chip Preview inside bar */}
               {selectedFile && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "6px 12px",
-                    background: "#eff6ff",
-                    border: "1px solid #bfdbfe",
-                    borderRadius: "var(--radius-md)",
-                    marginBottom: 8,
-                    fontSize: "0.8125rem",
-                    color: "#1d4ed8",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, overflow: "hidden" }}>
-                    <span>📎</span>
-                    <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {selectedFile.name}
-                    </span>
-                    <span style={{ color: "#64748b", fontSize: "0.75rem", flexShrink: 0 }}>
-                      ({(selectedFile.size / 1024).toFixed(0)} KB)
-                    </span>
-                  </div>
+                <div className="file-chip">
+                  <span>📎</span>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {selectedFile.name}
+                  </span>
+                  <span style={{ opacity: 0.7, fontSize: "0.75rem" }}>
+                    ({(selectedFile.size / 1024).toFixed(0)} KB)
+                  </span>
                   <button
                     type="button"
                     onClick={() => {
                       setSelectedFile(null);
                       if (fileRef.current) fileRef.current.value = "";
                     }}
-                    style={{
-                      background: "transparent",
-                      border: "none",
-                      color: "#64748b",
-                      cursor: "pointer",
-                      padding: "2px 6px",
-                      fontSize: "0.875rem",
-                      fontWeight: "bold",
-                      lineHeight: 1,
-                    }}
-                    title="Remove file"
+                    style={{ background: "transparent", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px", fontWeight: "bold" }}
                   >
                     ✕
                   </button>
                 </div>
               )}
 
-              <div className="chat-input-bar">
-                {/* Hidden file input */}
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept={ACCEPT}
-                  style={{ display: "none" }}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) setSelectedFile(f);
-                  }}
-                />
-                {/* Upload */}
+              {/* Textarea */}
+              <textarea
+                ref={textareaRef}
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                onKeyDown={onKeyDown}
+                rows={1}
+                placeholder={
+                  isRecording
+                    ? "Listening to voice… speak now"
+                    : selectedFile
+                    ? "Add a comment with your file, then hit send…"
+                    : "Type your answer… (Enter to send, Shift+Enter for newline)"
+                }
+                disabled={sending || uploading}
+                className="chat-textarea"
+              />
+
+              {/* Integrated Actions Bar */}
+              <div className="chat-actions-row">
+                <div className="action-btn-group">
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept={ACCEPT}
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) setSelectedFile(f);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    title="Attach spreadsheet, PDF, or document"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={uploading || sending || isRecording}
+                    className={`tool-icon-btn ${selectedFile ? "active" : ""}`}
+                  >
+                    <IconPaperclip />
+                  </button>
+
+                  <button
+                    type="button"
+                    title="Record voice input"
+                    onClick={toggleRecording}
+                    disabled={uploading || sending}
+                    className={`tool-icon-btn ${isRecording ? "recording" : ""}`}
+                  >
+                    <IconMic active={isRecording} />
+                  </button>
+                </div>
+
                 <button
                   type="button"
-                  title="Attach a sheet, PDF, or photo"
-                  onClick={() => fileRef.current?.click()}
-                  disabled={uploading || sending || isRecording}
-                  className="btn btn-secondary"
-                  style={{
-                    width: 38,
-                    height: 38,
-                    padding: 0,
-                    flexShrink: 0,
-                    ...(selectedFile ? { borderColor: "#3b82f6", color: "#2563eb", background: "#eff6ff" } : {}),
-                  }}
-                >
-                  <IconPaperclip />
-                </button>
-                {/* Mic */}
-                <button
-                  type="button"
-                  title="Record voice"
-                  onClick={toggleRecording}
-                  disabled={uploading || sending}
-                  className="btn btn-secondary"
-                  style={{
-                    width: 38,
-                    height: 38,
-                    padding: 0,
-                    flexShrink: 0,
-                    ...(isRecording ? { color: "var(--color-danger)", borderColor: "#fca5a5", background: "var(--color-danger-light)" } : {}),
-                  }}
-                >
-                  <IconMic active={isRecording} />
-                </button>
-                {/* Textarea */}
-                <textarea
-                  ref={textareaRef}
-                  value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  onKeyDown={onKeyDown}
-                  rows={1}
-                  placeholder={
-                    isRecording
-                      ? "Listening… speak now"
-                      : selectedFile
-                      ? "Add a note with your file (optional), then hit send…"
-                      : "Type your answer… (Enter to send)"
-                  }
-                  disabled={sending || uploading}
-                  className="textarea"
-                  style={{ flex: 1, minHeight: 38, maxHeight: 148 }}
-                />
-                {/* Send */}
-                <button
                   onClick={submit}
                   disabled={sending || uploading || (!answer.trim() && !selectedFile)}
-                  className="btn btn-primary"
-                  style={{ width: 38, height: 38, padding: 0, flexShrink: 0 }}
+                  className="send-btn-round"
                   title="Send message"
                 >
                   <IconSend />
@@ -545,86 +519,80 @@ export default function InterviewClient({ token }: { token: string }) {
         </footer>
       </div>
 
-      {/* Context Panel (desktop only) */}
+      {/* Right Sidebar: Knowledge Progress */}
       <aside className="context-panel scrollbar-thin">
-        {/* Header */}
-        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--color-border)" }}>
-          <h4 style={{ marginBottom: 0 }}>Knowledge Progress</h4>
+        <div style={{ padding: "20px", borderBottom: "1px solid var(--color-border)", background: "#ffffff" }}>
+          <h3 style={{ fontSize: "0.9375rem", marginBottom: 2 }}>Knowledge Progress</h3>
+          <p style={{ fontSize: "0.75rem", color: "var(--color-text-secondary)" }}>Real-time coverage & probing state</p>
         </div>
 
-        {/* Open Branches */}
+        {/* Open Probing Threads */}
         <div className="context-section">
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--color-text-secondary)" }}>
-              Open threads
+            <span style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--color-text-primary)" }}>
+              Open Threads
             </span>
-            <span style={{ fontSize: "0.75rem", background: "#f3f4f6", borderRadius: "var(--radius-full)", padding: "2px 8px", color: "var(--color-text-secondary)" }}>
+            <span className="badge badge-accent">
               {branches.length}
             </span>
           </div>
           {branches.length === 0 ? (
-            <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>No open threads.</p>
+            <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>No open follow-up threads.</p>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {branches.map((b, i) => (
                 <div
                   key={i}
                   style={{
-                    padding: "8px 10px",
+                    padding: "10px 12px",
                     background: "var(--color-warn-light)",
-                    border: "1px solid #fde68a",
+                    border: "1px solid #fcd34d",
                     borderRadius: "var(--radius-md)",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-                    <span
-                      style={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: "50%",
-                        background: b.priority === "high" || b.priority === "critical" ? "var(--color-danger)" : "var(--color-warn)",
-                        flexShrink: 0,
-                      }}
-                    />
-                    <span style={{ fontSize: "0.6875rem", fontWeight: 600, color: "var(--color-warn-text)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ fontSize: "0.6875rem", fontWeight: 700, color: "var(--color-warn-text)", textTransform: "uppercase" }}>
                       {b.priority}
                     </span>
+                    <span className="badge badge-warn" style={{ fontSize: "0.625rem" }}>Open</span>
                   </div>
-                  <p style={{ fontSize: "0.8125rem", fontWeight: 500, color: "#92400e", margin: 0 }}>{b.topic}</p>
+                  <p style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#92400e" }}>{b.topic}</p>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Coverage */}
+        {/* Coverage Dimensions */}
         <div className="context-section" style={{ borderBottom: "none" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--color-text-secondary)" }}>
-              Task coverage
+            <span style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--color-text-primary)" }}>
+              Task Coverage
             </span>
             {coverageKeys.length > 0 && (
-              <span className="badge badge-accent">
+              <span className="badge badge-success">
                 {Math.round(coverageKeys.reduce((a, k) => a + coverage[k], 0) / coverageKeys.length)}%
               </span>
             )}
           </div>
           {coverageKeys.length === 0 ? (
-            <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>Discovering tasks…</p>
+            <div style={{ padding: "16px 0", textAlign: "center", color: "var(--color-text-muted)", fontSize: "0.8125rem" }}>
+              Discovering task dimensions…
+            </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {coverageKeys.map((k) => (
                 <div key={k}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{ fontSize: "0.6875rem", fontWeight: 500, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    <span style={{ fontSize: "0.6875rem", fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                       {k.replace(/_/g, " ")}
                     </span>
-                    <span style={{ fontSize: "0.6875rem", color: "var(--color-text-muted)" }}>{coverage[k]}%</span>
+                    <span style={{ fontSize: "0.6875rem", fontWeight: 700, color: "var(--color-text-primary)" }}>{coverage[k]}%</span>
                   </div>
-                  <div className="progress-track" style={{ height: 3 }}>
+                  <div className="progress-track" style={{ height: 4 }}>
                     <div
-                      className="progress-fill"
-                      style={{ width: `${coverage[k]}%`, background: coverage[k] >= 80 ? "var(--color-success)" : coverage[k] >= 40 ? "var(--color-warn)" : "var(--color-accent)" }}
+                      className={`progress-fill ${coverage[k] >= 80 ? "green" : coverage[k] >= 40 ? "amber" : ""}`}
+                      style={{ width: `${coverage[k]}%` }}
                     />
                   </div>
                 </div>
