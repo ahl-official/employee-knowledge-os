@@ -135,6 +135,10 @@ export default function AdminPage() {
   );
 
   const loadEmployees = useCallback(async () => {
+    if (!pass.trim()) {
+      setError("Please enter the admin passphrase");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -154,7 +158,7 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, [headers]);
+  }, [pass, headers]);
 
   async function addEmployee(e: React.FormEvent) {
     e.preventDefault();
@@ -259,6 +263,7 @@ export default function AdminPage() {
                   type="password"
                   value={pass}
                   onChange={(e) => setPass(e.target.value)}
+                  onInput={(e) => setPass((e.target as HTMLInputElement).value)}
                   placeholder="Enter passphrase"
                   className="input"
                   style={{ width: "100%", height: 42, fontSize: "0.9375rem" }}
@@ -272,7 +277,7 @@ export default function AdminPage() {
               </div>
               <button
                 type="submit"
-                disabled={loading || !pass.trim()}
+                disabled={loading}
                 className="btn btn-primary"
                 style={{ width: "100%", height: 42, fontSize: "0.9375rem", fontWeight: 600 }}
               >

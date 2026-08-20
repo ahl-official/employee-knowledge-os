@@ -24,7 +24,9 @@ export const config = {
     passphrase: process.env.ADMIN_PASSPHRASE ?? "",
   },
   app: {
-    baseUrl: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000",
+    baseUrl:
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"),
   },
 } as const;
 
