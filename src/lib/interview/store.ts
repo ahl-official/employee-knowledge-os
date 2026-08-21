@@ -197,6 +197,18 @@ function profileString(e: Employee): string {
  * Saves the raw answer first (never lost), then either advances the deterministic
  * profile phase or runs an AI deep-dive turn.
  */
+function sanitizeProfileValue(field: string, text: string): string {
+  let val = text.trim();
+  if (field === "reporting_manager") {
+    val = val.replace(/^(my reporting manager is|my manager is|reporting manager is|manager is|reports to)\s+/i, "");
+  } else if (field === "experience") {
+    val = val.replace(/^(i have|my experience is|experience is)\s+/i, "");
+  } else if (field === "main_responsibility") {
+    val = val.replace(/^(my main responsibility is|my responsibility is|main responsibility is|responsibility is)\s+/i, "");
+  }
+  return val ? val.charAt(0).toUpperCase() + val.slice(1) : text;
+}
+
 export async function processAnswer(token: string, answer: string): Promise<TurnOutcome> {
   const db = getServiceClient();
   const employee = await getEmployeeByToken(token);
@@ -222,7 +234,8 @@ export async function processAnswer(token: string, answer: string): Promise<Turn
   // 2) Deterministic profile phase (steps 0-5): store field, ask next question.
   if (session.profile_step <= 5) {
     const field = PROFILE_FIELDS[session.profile_step];
-    await db.from("employees").update({ [field]: cleanAnswer }).eq("id", employee.id);
+    const sanitizedVal = sanitizeProfileValue(field, cleanAnswer);
+    await db.from("employees").update({ [field]: sanitizedVal }).eq("id", employee.id);
 
     const nextStep = session.profile_step + 1;
     const nextQuestion = PROFILE_QUESTIONS[nextStep];
