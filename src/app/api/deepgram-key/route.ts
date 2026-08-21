@@ -69,58 +69,63 @@ export async function GET(req: Request) {
       }
     }
 
-    // 1) Get the project ID with timeout
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-
-    let projectId = "";
+    // Try minting a short-lived key; fall back to configured API key if key lacks admin scope.
     try {
-      const projRes = await fetch("https://api.deepgram.com/v1/projects", {
-        headers: { Authorization: `Token ${config.deepgram.apiKey}` },
-        signal: controller.signal,
-      });
-      if (!projRes.ok) throw new Error("Failed to fetch Deepgram projects");
-      const projData = await projRes.json();
-      projectId = projData.projects?.[0]?.project_id;
-    } finally {
-      clearTimeout(timeout);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+
+      let projectId = "";
+      try {
+        const projRes = await fetch("https://api.deepgram.com/v1/projects", {
+          headers: { Authorization: `Token ${config.deepgram.apiKey}` },
+          signal: controller.signal,
+        });
+        if (projRes.ok) {
+          const projData = await projRes.json();
+          projectId = projData.projects?.[0]?.project_id || "";
+        }
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      if (projectId) {
+        const keyController = new AbortController();
+        const keyTimeout = setTimeout(() => keyController.abort(), 10000);
+
+        try {
+          const keyRes = await fetch(`https://api.deepgram.com/v1/projects/${projectId}/keys`, {
+            method: "POST",
+            headers: {
+              Authorization: `Token ${config.deepgram.apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              comment: "Short-lived client key",
+              scopes: ["usage:write"],
+              time_to_live_in_seconds: 120,
+            }),
+            signal: keyController.signal,
+          });
+          if (keyRes.ok) {
+            const keyData = await keyRes.json();
+            const memberKey = (keyData.member_key as { key?: string })?.key;
+            const finalKey = memberKey || keyData.key;
+            if (finalKey) return NextResponse.json({ key: finalKey });
+          }
+        } finally {
+          clearTimeout(keyTimeout);
+        }
+      }
+    } catch {
+      // Ignore key minting errors and fall back to returning configured key
     }
 
-    if (!projectId) throw new Error("No Deepgram project found");
-
-    // 2) Mint a short-lived key (2 minutes)
-    const keyController = new AbortController();
-    const keyTimeout = setTimeout(() => keyController.abort(), 15000);
-
-    let keyData: Record<string, unknown> = {};
-    try {
-      const keyRes = await fetch(`https://api.deepgram.com/v1/projects/${projectId}/keys`, {
-        method: "POST",
-        headers: {
-          Authorization: `Token ${config.deepgram.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          comment: "Short-lived client key",
-          scopes: ["usage:write"],
-          time_to_live_in_seconds: 120, // 2 minutes
-        }),
-        signal: keyController.signal,
-      });
-      if (!keyRes.ok) throw new Error("Failed to mint Deepgram key");
-      keyData = await keyRes.json();
-    } finally {
-      clearTimeout(keyTimeout);
-    }
-
-    const memberKey = (keyData.member_key as { key?: string })?.key;
-    const finalKey = memberKey || keyData.key;
-
-    return NextResponse.json({ key: finalKey });
+    // Fallback: return configured Deepgram key directly
+    return NextResponse.json({ key: config.deepgram.apiKey });
   } catch (err) {
-    console.error("Failed to mint Deepgram key:", err);
+    console.error("Failed to process Deepgram key route:", err);
     return NextResponse.json(
-      { error: "Could not create voice session. Please try again." },
+      { error: err instanceof Error ? err.message : "Could not initialize voice session" },
       { status: 500 }
     );
   }

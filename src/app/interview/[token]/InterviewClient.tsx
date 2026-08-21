@@ -286,13 +286,23 @@ export default function InterviewClient({ token }: { token: string }) {
         }
         setIsRecording(false);
       };
-    } catch {
+    } catch (err: unknown) {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
       }
       setIsRecording(false);
-      setError("Microphone access failed. You can type your answer below.");
+      
+      const errName = err instanceof Error ? err.name : "";
+      const errMsg = err instanceof Error ? err.message : "";
+      
+      if (errName === "NotAllowedError" || errName === "PermissionDeniedError") {
+        setError("Microphone permission was denied. Please click the camera/mic icon in your browser address bar and allow access.");
+      } else if (errName === "NotFoundError" || errName === "DevicesNotFoundError") {
+        setError("No microphone was detected on your device. Please plug in a microphone or type your answer below.");
+      } else {
+        setError(errMsg || "Microphone access or voice session initialization failed.");
+      }
     }
   }
 
