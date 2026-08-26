@@ -85,6 +85,7 @@ export default function InterviewClient({ token }: { token: string }) {
   const socketRef = useRef<WebSocket | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const isSubmittingRef = useRef<boolean>(false);
+  const voiceKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -238,9 +239,16 @@ export default function InterviewClient({ token }: { token: string }) {
 
     try {
       setError("");
-      const keyRes = await fetch(`/api/deepgram-key?token=${encodeURIComponent(token)}`);
-      const { key, error: keyErr } = await keyRes.json();
-      if (!key) throw new Error(keyErr || "Could not authenticate voice session");
+      if (!voiceKeyRef.current) {
+        const keyRes = await fetch(`/api/deepgram-key?token=${encodeURIComponent(token)}`);
+        const data = await keyRes.json();
+        if (!data.key || typeof data.key !== "string") {
+          throw new Error(data.error || "Could not authenticate voice session");
+        }
+        voiceKeyRef.current = data.key;
+      }
+      const activeKey = voiceKeyRef.current;
+      if (!activeKey) throw new Error("Could not authenticate voice session");
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -248,7 +256,7 @@ export default function InterviewClient({ token }: { token: string }) {
       mediaRecorderRef.current = mediaRecorder;
 
       const wsUrl = "wss://api.deepgram.com/v1/listen?model=nova-3&language=multi&smart_format=true&punctuate=true";
-      const socket = new WebSocket(wsUrl, ["token", key]);
+      const socket = new WebSocket(wsUrl, ["token", activeKey]);
       socketRef.current = socket;
 
       socket.onopen = () => {

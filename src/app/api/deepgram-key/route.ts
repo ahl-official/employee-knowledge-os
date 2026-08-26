@@ -17,7 +17,7 @@ function evictExpired(now: number) {
   }
 }
 
-function isMintRateLimited(employeeId: string, maxMints = 6, windowMs = 300_000): boolean {
+function isMintRateLimited(employeeId: string, maxMints = 30, windowMs = 300_000): boolean {
   const now = Date.now();
   evictExpired(now);
 
