@@ -59,14 +59,6 @@ export async function GET(req: Request) {
       if (!employee || employee.status === "completed") {
         return NextResponse.json({ error: "unauthorized" }, { status: 401 });
       }
-
-      // Rate limit authenticated employee.id
-      if (isMintRateLimited(employee.id)) {
-        return NextResponse.json(
-          { error: "Too many voice sessions — please wait a few minutes." },
-          { status: 429 }
-        );
-      }
     }
 
     // Try minting a short-lived key; fall back to configured API key if key lacks admin scope.
