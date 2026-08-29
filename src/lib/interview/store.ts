@@ -5,11 +5,12 @@ import {
   Coverage,
   COVERAGE_KEYS,
   Employee,
+  Fact,
   Message,
   Task,
 } from "@/lib/types";
 import { PROFILE_QUESTIONS } from "@/lib/interview/prompt";
-import { runInterviewTurn } from "@/lib/interview/engine";
+import { isIncidentalFollowUp, runInterviewTurn } from "@/lib/interview/engine";
 
 type DB = ReturnType<typeof getServiceClient>;
 
@@ -164,6 +165,66 @@ export async function getTask(db: DB, taskId: string | null): Promise<Task | nul
   return (data as Task) ?? null;
 }
 
+const CAPTURED_THRESHOLD = 40;
+
+/** Read-only: compact cheat sheet from existing facts. Never deletes rows. */
+async function loadInterviewMemory(
+  db: DB,
+  employeeId: string,
+  currentTask: Task | null
+): Promise<{
+  memorySheet: string;
+  otherTasks: string;
+  coveredKeys: (keyof Coverage)[];
+}> {
+  const [{ data: factRows }, { data: taskRows }] = await Promise.all([
+    db
+      .from("facts")
+      .select("category, fact_text, task_id, created_at")
+      .eq("employee_id", employeeId)
+      .order("created_at", { ascending: true }),
+    db.from("tasks").select("id, name, status").eq("employee_id", employeeId),
+  ]);
+
+  const facts = (factRows as Pick<Fact, "category" | "fact_text" | "task_id">[]) ?? [];
+  const tasks = (taskRows as Pick<Task, "id" | "name" | "status">[]) ?? [];
+
+  const currentId = currentTask?.id ?? null;
+  const currentFacts = facts.filter((f) =>
+    currentId ? f.task_id === currentId || f.task_id == null : true
+  );
+
+  const byCat = new Map<string, string[]>();
+  for (const f of currentFacts) {
+    const cat = (f.category || "misc").toLowerCase();
+    const text = (f.fact_text || "").trim().slice(0, 220);
+    if (!text) continue;
+    const list = byCat.get(cat) ?? [];
+    if (list.length < 2) list.push(text);
+    byCat.set(cat, list);
+  }
+
+  const sheetLines: string[] = [];
+  for (const [cat, texts] of byCat) {
+    sheetLines.push(`- ${cat}: ${texts.join(" | ")}`);
+  }
+  const memorySheet = sheetLines.join("\n").slice(0, 1600);
+
+  const otherTasks = tasks
+    .filter((t) => t.id !== currentId)
+    .map((t) => `- ${t.name} (${t.status})`)
+    .join("\n")
+    .slice(0, 400);
+
+  const coveredKeys = COVERAGE_KEYS.filter((k) => {
+    const score = currentTask?.coverage?.[k] ?? 0;
+    const hasFact = byCat.has(k);
+    return score >= CAPTURED_THRESHOLD || hasFact;
+  });
+
+  return { memorySheet, otherTasks, coveredKeys };
+}
+
 /** Concatenated extracted text from an employee's uploads, truncated for cost. */
 async function getUploadsText(db: DB, employeeId: string): Promise<string> {
   const { data } = await db
@@ -261,9 +322,10 @@ export async function processAnswer(token: string, answer: string): Promise<Turn
   // 3) Deep-dive phase (step 6 = task-list answer, then step 7+ = per-task probing).
   const freshEmployee = (await getEmployeeByToken(token))!;
   const currentTask = await getTask(db, session.current_task_id);
-  const recentMessages = await getRecentMessages(employee.id, 8);
+  const recentMessages = await getRecentMessages(employee.id, 6);
   const openBranches = await getOpenBranches(db, employee.id);
   const documents = await getUploadsText(db, employee.id);
+  const memory = await loadInterviewMemory(db, employee.id, currentTask);
 
   const result = await runInterviewTurn({
     profile: profileString(freshEmployee),
@@ -272,6 +334,9 @@ export async function processAnswer(token: string, answer: string): Promise<Turn
     recentMessages,
     latestAnswer: answer,
     documents,
+    memorySheet: memory.memorySheet,
+    otherTasks: memory.otherTasks,
+    coveredKeys: memory.coveredKeys,
   });
 
   let nextTaskId = session.current_task_id;
@@ -356,9 +421,10 @@ export async function processDocument(token: string, payload: UploadPayload): Pr
     .eq("id", employee.id);
 
   const currentTask = await getTask(db, session.current_task_id);
-  const recentMessages = await getRecentMessages(employee.id, 8);
+  const recentMessages = await getRecentMessages(employee.id, 6);
   const openBranches = await getOpenBranches(db, employee.id);
   const documents = await getUploadsText(db, employee.id);
+  const memory = await loadInterviewMemory(db, employee.id, currentTask);
 
   const notePrefix = commentText ? `User note: "${commentText}"\n\n` : "";
   const latest = payload.extractedText
@@ -372,6 +438,9 @@ export async function processDocument(token: string, payload: UploadPayload): Pr
     recentMessages,
     latestAnswer: latest,
     documents,
+    memorySheet: memory.memorySheet,
+    otherTasks: memory.otherTasks,
+    coveredKeys: memory.coveredKeys,
   });
 
   let nextTaskId = session.current_task_id;
@@ -484,6 +553,9 @@ async function applyAnalysis(
     const openTopics = new Set(openBranches.map((b) => b.topic.toLowerCase()));
     const toInsert = analysis.new_branches
       .filter((b) => b.topic && !openTopics.has(b.topic.toLowerCase()))
+      .filter((b) => b.priority === "critical" || b.priority === "high")
+      .filter((b) => !isIncidentalFollowUp(`${b.topic} ${b.suggested_question}`))
+      .slice(0, 2)
       .map((b) => ({
         employee_id: employee.id,
         task_id: currentTask?.id ?? null,
