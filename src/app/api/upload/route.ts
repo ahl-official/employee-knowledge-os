@@ -4,6 +4,7 @@ import { getServiceClient } from "@/lib/supabase";
 import { getEmployeeByToken, processDocument } from "@/lib/interview/store";
 import { extractFileText } from "@/lib/parse";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { triggerBackgroundDriveSync } from "@/lib/driveSync";
 import { google } from "googleapis";
 import { Readable } from "stream";
 
@@ -105,6 +106,9 @@ export async function POST(req: Request) {
       driveUrl,
       comment,
     });
+
+    // Automatically sync updated employee Markdown SOP to Google Drive in the background
+    triggerBackgroundDriveSync(employee.id);
 
     return NextResponse.json({ ...outcome, fileName, kind, extracted: text.length > 0 });
   } catch (err) {

@@ -47,3 +47,10 @@ yarn-error.log*
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Credentials and exports
+*.json.key
+*service_account*.json
+ahl-sheets-automation-*.json
+exports/
+scratch/

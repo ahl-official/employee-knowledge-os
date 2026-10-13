@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "sync:drive": "node scripts/export-and-upload-all-sops.mjs"
   },
   "dependencies": {
     "@deepgram/sdk": "^5.8.0",

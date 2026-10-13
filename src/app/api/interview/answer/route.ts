@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { assertServerEnv } from "@/lib/config";
 import { getEmployeeByToken, processAnswer } from "@/lib/interview/store";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { triggerBackgroundDriveSync } from "@/lib/driveSync";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -27,6 +28,10 @@ export async function POST(req: Request) {
     }
 
     const outcome = await processAnswer(token, answer);
+
+    // Automatically sync updated employee Markdown SOP to Google Drive in the background
+    triggerBackgroundDriveSync(employee.id);
+
     return NextResponse.json(outcome);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "server_error";
