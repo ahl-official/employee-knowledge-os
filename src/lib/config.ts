@@ -20,9 +20,6 @@ export const config = {
   deepgram: {
     apiKey: process.env.DEEPGRAM_API_KEY ?? "",
   },
-  admin: {
-    passphrase: process.env.ADMIN_PASSPHRASE ?? "",
-  },
   app: {
     baseUrl:
       process.env.NEXT_PUBLIC_BASE_URL ||

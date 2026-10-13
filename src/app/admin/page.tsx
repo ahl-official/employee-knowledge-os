@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface EmployeeRow {
   id: string;
@@ -114,8 +114,6 @@ const IconDoc = () => (
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function AdminPage() {
-  const [pass, setPass] = useState("");
-  const [authed, setAuthed] = useState(false);
   const [employees, setEmployees] = useState<EmployeeRow[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -130,39 +128,32 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<"chat" | "tasks" | "facts" | "branches">("chat");
 
   const headers = useCallback(
-    () => ({ "Content-Type": "application/json", "x-admin-passphrase": pass }),
-    [pass]
+    () => ({ "Content-Type": "application/json" }),
+    []
   );
 
-  const loadEmployees = useCallback(async (overridePass?: string) => {
-    const activePass = (overridePass ?? pass).trim();
-    if (!activePass) {
-      setError("Please enter the admin passphrase");
-      return;
-    }
+  const loadEmployees = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
       const res = await fetch("/api/admin/employees", {
-        headers: { "Content-Type": "application/json", "x-admin-passphrase": activePass },
+        headers: { "Content-Type": "application/json" },
       });
       const data = await res.json();
       if (!res.ok) {
-        if (res.status === 401) {
-          throw new Error("Incorrect passphrase. (Ensure ADMIN_PASSPHRASE is set in Vercel Environment Variables)");
-        }
-        throw new Error(data.error || "Login failed");
+        throw new Error(data.error || "Failed to load dashboard data");
       }
-      setPass(activePass);
       setEmployees(data.employees ?? []);
-      setAuthed(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to sign in");
-      setAuthed(false);
+      setError(e instanceof Error ? e.message : "Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
-  }, [pass]);
+  }, []);
+
+  useEffect(() => {
+    loadEmployees();
+  }, [loadEmployees]);
 
   async function addEmployee(e: React.FormEvent) {
     e.preventDefault();
@@ -244,69 +235,6 @@ export default function AdminPage() {
     notStarted: employees.filter((e) => e.status !== "in_progress" && e.status !== "completed").length,
   };
 
-  // ── Login Screen ────────────────────────────────────────────────────────────
-  if (!authed) {
-    return (
-      <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", background: "var(--color-bg)" }}>
-        <div style={{ width: "100%", maxWidth: 380 }}>
-          <div style={{ marginBottom: 32, textAlign: "center" }}>
-            <div style={{ width: 44, height: 44, background: "var(--color-accent)", borderRadius: "var(--radius-lg)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-              <IconDoc />
-            </div>
-            <h1 style={{ fontSize: "1.25rem", marginBottom: 6 }}>Knowledge OS</h1>
-            <p style={{ color: "var(--color-text-secondary)", fontSize: "0.875rem" }}>Admin dashboard</p>
-          </div>
-
-          <div className="card" style={{ padding: 28 }}>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const pwdInput = e.currentTarget.querySelector<HTMLInputElement>("input[name='passphrase']");
-                const val = pwdInput?.value || pass;
-                loadEmployees(val);
-              }}
-            >
-              <div style={{ marginBottom: 18 }}>
-                <label style={{ display: "block", fontSize: "0.8125rem", fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 8 }}>
-                  Admin passphrase
-                </label>
-                <input
-                  type="password"
-                  name="passphrase"
-                  value={pass}
-                  onChange={(e) => setPass(e.target.value)}
-                  onInput={(e) => setPass((e.target as HTMLInputElement).value)}
-                  placeholder="Enter passphrase"
-                  className="input"
-                  style={{ width: "100%", height: 42, fontSize: "0.9375rem" }}
-                  autoFocus
-                />
-                {error && (
-                  <p style={{ marginTop: 8, fontSize: "0.8125rem", color: "var(--color-danger-text)", fontWeight: 500 }}>
-                    {error}
-                  </p>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  const pwdInput = document.querySelector<HTMLInputElement>("input[name='passphrase']");
-                  const val = pwdInput?.value || pass;
-                  loadEmployees(val);
-                }}
-                disabled={loading}
-                className="btn btn-primary"
-                style={{ width: "100%", height: 42, fontSize: "0.9375rem", fontWeight: 600 }}
-              >
-                {loading ? "Verifying…" : "Sign in"}
-              </button>
-            </form>
-          </div>
-        </div>
-      </main>
-    );
-  }
 
   // ── Dashboard ───────────────────────────────────────────────────────────────
   return (
